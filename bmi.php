@@ -29,24 +29,20 @@ class bmi {
 
     public $bmi = 0;
     public $weight = 0;
-    public $height = 0;
+    public $height = "0'";
     public $bmiclass = Array (
-  	0 => "Undefined",
+		0 => "Undefined",
         1 => "Underweight",
         2 => "Normal",
         3 => "Overweight",
-        4 => "Obese",
+        4 => "Obese"
     );
     public $cli = FALSE;
+	public $action = 0;
     public $output = "";
 
 
     public function __construct() {
-        // Construct code here.
-        ;
-    }
-
-    public function init() {
         // init code here.
         try {
 	        if (defined('STDIN')) {
@@ -61,91 +57,93 @@ class bmi {
 				} else {
 					$_GET["rwts"] = FALSE;
 				}
-				if(array_key_exists("bmi", $_GET)) {
+				if (array_key_exists("bmi", $_GET)) {
 					$this->bmi = $_GET["bmi"];
 					$this->bmi += 0;
 				}
+				if (array_key_exists("w", $_GET)) {
+					$this->weight = $_GET["w"];
+		            $this->weight += 0;
+				}
+				if (array_key_exists("ft", $_GET)) {
+					$this->height = $_GET["ft"] . "'";
+				}
+	            if (array_key_exists("in", $_GET)) {
+					$this->height .= $_GET["in"] . "\"";
+				} else {
+					$this->height .= "0\"";
+				}
+				$this->height = $this->ftintoin($this->height);
 				
+				// bmi(1): calculate for BMI.
 	            if (array_key_exists("w", $_GET)
 	            && (array_key_exists("in", $_GET) || array_key_exists("ft", $_GET))
 	            && $_GET["rhts"] == FALSE
 	            && $_GET["rwts"] == FALSE) {
-		            $this->weight = $_GET["w"];
-		            $this->weight += 0;
-		            $height = "0'";
-		            if (array_key_exists("ft", $_GET)) { $height = $_GET["ft"] . "'"; }
-		            if (array_key_exists("in", $_GET)) { $height .= $_GET["in"] . "\""; }
-		            $this->height = $this->ftintoin($height);
-		            unset($height);
-		            $this->output .= $this->main(1);
+					$this->action = 1;
 		
-		        // main(2): calculate for weight.
+		        // bmi(2): calculate for weight.
 	            } else if (
 	            ($_GET["rwts"] || $this->bmi > 0)
 	            && (array_key_exists("ft", $_GET) || array_key_exists("in", $_GET))
 	            ) {
-		            $height = "0'";
-		            if (array_key_exists("ft", $_GET)) { $height = $_GET["ft"] . "'"; }
-		            if (array_key_exists("in", $_GET)) { $height .= $_GET["in"] . "\""; }
-		            $this->height = $this->ftintoin($height);
-		            unset($height);
-		            $this->output .= $this->main(2);
+		            $this->action = 2;
 		
-		         // main(3): calculate for height.
+		        // bmi(3): calculate for height.
 	            } else if (
 	            ($_GET["rhts"] || $this->bmi > 0)
 	            && array_key_exists("w", $_GET)
 				) {
-		            $this->weight = $_GET["w"];
-		            $this->weight += 0;
-		            $this->output .= $this->main(3);
+		            $this->action = 3;
+		
+				// bmi(0): Display usage.
 		        } else {
-		            $this->output .= $this->main();
+		            $this->action = 0;
 	            }
-	            return $this->output;
+	            return TRUE;
 	        }
-	        return "\nError: Undefined.\n";
+	        return FALSE;
 	    } catch (Exception $ex) {
-		    return print_r($ex);
+		    return $ex;
         }
     }
 
-    public function main($action = 0, $output = "") {
-		if($_GET["rhts"] || $_GET["rwts"]) {
+    public function bmimain($action = 0) {
+		if ($_GET["rhts"] || $_GET["rwts"]) {
 			$rbmis = Array(
-				(float)(rand(1000,1849)/100),
-				(float)(rand(1850,2499)/100),
-				(float)(rand(2500,2999)/100),
-				(float)(rand(3000,3599)/100)
+				(float)(rand(1000,1849)*0.01),
+				(float)(rand(1850,2499)*0.01),
+				(float)(rand(2500,2999)*0.01),
+				(float)(rand(3000,3599)*0.01)
 			);
 		}
 		switch ($action) {
 
 				// Height and weight provided, calculate for BMI.
 			case 1 : {
-				if(FALSE == $this->setbmi($this->height, $this->weight)) throw new Exception("Error calculating BMI.\n");
-				if(FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
+				if (FALSE == $this->setbmi($this->height, $this->weight)) throw new Exception("Error calculating BMI.\n");
+				if (FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
 				break;
 			}
 
 				// BMI and height provided, calculate for weight.
 			case 2 : {
 				if ($_GET["rwts"]) {
-					$output .= "\n";
+					$this->output .= "\n";
 					foreach($rbmis as $k => $abmi) {
 						$this->bmi = $abmi;
-						if(FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
+						if (FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
 						
 						$fl = $this->setweight($this->bmi, $this->height);
-						if(FALSE == $fl) throw new Exception("Error calculating weights.\n");
+						if (FALSE == $fl) throw new Exception("Error calculating weights.\n");
 						
-						$outtmp = $this->catbmiout($this->height, $this->weight, $abmi);
-						if(FALSE == $outtmp) throw new Exception("Error concatinating BMI statistics.\n");
-						$output .= $outtmp;
+						$tmpout = $this->catbmiout($this->height, $this->weight, $abmi);
+						if (FALSE == $tmpout) throw new Exception("Error concatinating BMI statistics.\n");
+						$this->output .= $tmpout;
 					}
-					$output .= "\nDone.\n";
-					return $output;
-				} else if(FALSE == $this->setweight($this->bmi, $this->height)) {
+					$this->output .= "\nDone.\n";
+					return $this->output;
+				} else if (FALSE == $this->setweight($this->bmi, $this->height)) {
 					throw new Exception("Error calculating weight.\n");
 					break;
 				}
@@ -155,21 +153,21 @@ class bmi {
 				// BMI and weight provided, calculate for height.
 			case 3 : {
 				if ($_GET["rhts"] ) {
-					$output .= "\n";
+					$this->output .= "\n";
 					foreach($rbmis as $k => $abmi) {
 						$this->bmi = $abmi;
-						if(FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
+						if (FALSE == $this->wtclass($this->bmi)) throw new Exception("Error calculating weight status.\n");
 						
 						$fl = $this->setheight($this->bmi, $this->weight);
-						if(FALSE == $fl) throw new Exception("Error calculating heights.\n");
+						if (FALSE == $fl) throw new Exception("Error calculating heights.\n");
 						
-						$outtmp = $this->catbmiout($this->height, $this->weight, $abmi);
-						if(FALSE == $outtmp) throw new Exception("Error concatinating BMI statistics.\n");
-						$output .= $outtmp;
+						$tmpout = $this->catbmiout($this->height, $this->weight, $abmi);
+						if (FALSE == $tmpout) throw new Exception("Error concatinating BMI statistics.\n");
+						$this->output .= $tmpout;
 					}
-					$output .= "\nDone.\n";
-					return $output;
-				} else if(FALSE == $this->setheight($this->bmi, $this->weight)) {
+					$this->output .= "\nDone.\n";
+					return $this->output;
+				} else if (FALSE == $this->setheight($this->bmi, $this->weight)) {
 					throw new Exception("Error calculating height.\n");
 					break;
 				}
@@ -177,7 +175,7 @@ class bmi {
 			}
 
 			default : {
-		        $output .= <<<USAGE
+		        $this->output .= <<<USAGE
 
 Invalid arguments. Please specify height and weight.
 
@@ -197,18 +195,18 @@ Usage: bmi.php [ft=feet] [in=inches] [w=weight] [bmi=bmi] [( rhts=true || rwts=t
 
 
 USAGE;
-		        return $output;
+		        return $this->output;
 			}
 	    }
-		$outtmp = $this->catbmiout($this->height, $this->weight, $this->bmi);
-		if($outtmp == FALSE) throw new Exception("Error concatinating BMI statistics:\n");
-		$output .= $outtmp . "\nDone.\n";
-		return $output;
+		$tmpout = $this->catbmiout($this->height, $this->weight, $this->bmi);
+		if ($tmpout == FALSE) throw new Exception("Error concatinating BMI statistics:\n");
+		$this->output .= $tmpout . "\nDone.\n";
+		return $this->output;
     }
 
 	public function catbmiout($height = 0, $weight = 0, $bmi = 0) {
 		$output = "\n";
-		if( is_int($height) && is_int($weight) && (is_int($bmi) || is_float($bmi)) ) {
+		if ( is_int($height) && is_int($weight) && (is_int($bmi) || is_float($bmi)) ) {
 			$wtclass = $this->wtclass($bmi);
 			$output .= "\nWeight Class: " . $this->bmiclass[$wtclass] . ":";
 			$output .= "\n      Height: " . $height . " inches.";
@@ -255,7 +253,7 @@ USAGE;
 
     public function ftintoin($length = "0'0\"") {
 	    $arrstr = explode("'", $length);
-	    if(sizeof($arrstr) == 2) {
+	    if (sizeof($arrstr) == 2) {
 		    str_replace("\"", "", $arrstr[1]);
 		    $arrstr[0] += 0;
 		    $arrstr[1] += 0;
@@ -266,5 +264,5 @@ USAGE;
 
 }
 $mybmi = new bmi();
-echo $mybmi->init();
+echo $mybmi->bmimain($mybmi->action);
 ?>
